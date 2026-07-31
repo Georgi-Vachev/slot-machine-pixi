@@ -44,7 +44,7 @@ class MainScene extends Container {
 class Game {
     public app: Application;
 
-    constructor() {}
+    constructor() { }
 
     async initialize(app: Application, urls: any) {
         this.app = app;
@@ -58,7 +58,10 @@ class Game {
 
 (async () => {
     const app = new Application();
-    await app.init({width: screen.width, height: screen.height});
+
+    globalThis.__PIXI_APP__ = app;
+
+    await app.init({ width: screen.width, height: screen.height });
     document.body.appendChild(app.canvas);
 
     const game = new Game();
@@ -67,7 +70,7 @@ class Game {
     const main = new MainScene();
     game.setScene(main);
 
-    app.ticker.add(({deltaTime}) => {
+    app.ticker.add(({ deltaTime }) => {
         main.update(deltaTime);
     });
 })();
