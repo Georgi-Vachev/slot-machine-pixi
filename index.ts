@@ -16,6 +16,8 @@ class MainScene extends Container {
         super();
 
         const background = Sprite.from('background');
+        background.anchor.set(0.5);
+        background.position.set(screen.width * 0.5, screen.height * 0.5);
         this.addChild(background);
 
         const reels = Sprite.from('reels_base');
@@ -73,4 +75,23 @@ class Game {
     app.ticker.add(({ deltaTime }) => {
         main.update(deltaTime);
     });
+
+    window.addEventListener('resize', () => resize(main));
+
+    resize(main);
 })();
+
+function resize(container: Container) {
+    const scale = Math.min(
+        window.innerWidth / screen.width,
+        window.innerHeight / screen.height
+    );
+
+    container.scale.set(scale);
+
+    container.x =
+        (window.innerWidth - screen.width * scale) / 2;
+
+    container.y =
+        (window.innerHeight - screen.height * scale) / 2;
+}
