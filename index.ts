@@ -14,7 +14,7 @@ const config = {
         columns: 5,
         rows: 5,
         visibleTiles: 3,
-        speed: 50,
+        speed: 24,
         staggerDelay: 0.1,
     },
     symbols: ['high1', 'high2', 'high3', 'low1', 'low2', 'low3', 'low4']
