@@ -1,11 +1,7 @@
 export class Outcome {
-    constructor() {}
+    constructor() { }
 
-    static resolve(): string[][] {
-        const columns = 5;
-        const rows = 3;
-        const symbols = ['high1', 'high2', 'high3', 'low1', 'low2', 'low3', 'low4'];
-
+    static resolve({ columns, rows, symbols }: { columns: number; rows: number; symbols: string[] }): string[][] {
         const outcome: string[][] = [];
         for (let i = 0; i < columns; i++) {
             const column = [];

@@ -3,10 +3,19 @@ import { Machine } from "./src/Machine";
 import { urls } from "./img";
 import { SpinButton } from "./src/SpinButton";
 import { delay } from './src/utils'
+import { Outcome } from './src/Outcome';
 
-const screen = {
-    width: 1920,
-    height: 1080
+const config = {
+    screen: {
+        width: 1920,
+        height: 1080,
+    },
+    reels: {
+        columns: 5,
+        rows: 5,
+        visibleTiles: 3,
+    },
+    symbols: ['high1', 'high2', 'high3', 'low1', 'low2', 'low3', 'low4']
 };
 
 const STATES = {
@@ -22,18 +31,20 @@ class MainScene extends Container {
     constructor() {
         super();
 
+        const { screen, reels, symbols } = config;
+
         const background = Sprite.from('background');
         background.anchor.set(0.5);
         background.position.set(screen.width * 0.5, screen.height * 0.5);
         this.addChild(background);
 
-        const reels = Sprite.from('reels_base');
-        reels.anchor.set(0.5);
-        reels.position.set(screen.width * 0.5, screen.height * 0.5);
-        this.addChild(reels);
+        const reelsBg = Sprite.from('reels_base');
+        reelsBg.anchor.set(0.5);
+        reelsBg.position.set(screen.width * 0.5, screen.height * 0.5);
+        this.addChild(reelsBg);
 
-        const machine = new Machine();
-        machine.position.set(screen.width * 0.5 - reels.width * 0.5, screen.height * 0.5 - reels.height * 0.5);
+        const machine = new Machine({ reelsGuide: reelsBg, config: { ...reels, symbols } });
+        machine.position.set(screen.width * 0.5 - reelsBg.width * 0.5, screen.height * 0.5 - reelsBg.height * 0.5);
         this.addChild(machine);
 
         const spinButton = new SpinButton();
@@ -81,6 +92,8 @@ class Game {
     async setState(state: typeof STATES[keyof typeof STATES]): Promise<void> {
         if (this._state === state) return;
 
+        const { reels: { columns, rows }, symbols } = config;
+
         this._state = state;
 
         switch (state) {
@@ -93,6 +106,10 @@ class Game {
             case STATES.SPINNING:
                 console.error('SPINNING') // TEMP
                 await delay(1);
+
+                const response = Outcome.resolve({ columns, rows, symbols });
+                console.error(response)
+
                 return await this.setState(STATES.WIN);
 
             case STATES.WIN:
@@ -108,7 +125,7 @@ class Game {
 
     globalThis.__PIXI_APP__ = app; // TEMP
 
-    await app.init({ width: screen.width, height: screen.height });
+    await app.init(config.screen);
     document.body.appendChild(app.canvas);
 
     const game = new Game();
@@ -129,6 +146,8 @@ class Game {
 })();
 
 function resize(container: Container) {
+    const { screen } = config;
+
     const scale = Math.min(
         window.innerWidth / screen.width,
         window.innerHeight / screen.height
