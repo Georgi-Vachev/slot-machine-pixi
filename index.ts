@@ -14,6 +14,8 @@ const config = {
         columns: 5,
         rows: 5,
         visibleTiles: 3,
+        speed: 50,
+        staggerDelay: 0.1,
     },
     symbols: ['high1', 'high2', 'high3', 'low1', 'low2', 'low3', 'low4']
 };
@@ -63,6 +65,14 @@ class MainScene extends Container {
     waitForSpin() {
         return this._spinButton.waitForClick();
     }
+
+    spin() {
+        this._machine.spin();
+    }
+
+    async stop(result: string[][]) {
+        await this._machine.stop(result);
+    }
 }
 
 class Game {
@@ -104,11 +114,13 @@ class Game {
                 return await this.setState(STATES.SPINNING);
 
             case STATES.SPINNING:
-                console.error('SPINNING') // TEMP
+                this._mainScene.spin();
                 await delay(1);
 
                 const response = Outcome.resolve({ columns, rows, symbols });
                 console.error(response)
+
+                await this._mainScene.stop(response);
 
                 return await this.setState(STATES.WIN);
 
