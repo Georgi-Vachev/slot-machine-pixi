@@ -144,12 +144,9 @@ class Reel extends Container {
 
 export class Machine extends Container {
     private _reels: Reel[] = [];
-    private _config: any;
 
     constructor({ reelsGuide, config }: { reelsGuide: Sprite; config: any }) {
         super();
-
-        this._config = config;
 
         const reelWidth = reelsGuide.width / config.columns;
         const reelHeight = reelsGuide.height;
