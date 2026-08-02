@@ -1,4 +1,4 @@
-import { Application, Assets, Sprite, Container } from 'pixi.js';
+import { Application, Assets, Sprite, Container, Rectangle } from 'pixi.js';
 import { Machine } from "./src/Machine";
 import { urls } from "./img";
 import { SpinButton } from "./src/SpinButton";
@@ -14,8 +14,9 @@ const config = {
         columns: 5,
         rows: 5,
         visibleTiles: 3,
-        speed: 24,
+        speed: 28,
         staggerDelay: 0.1,
+        skipFactor: 2.2,
     },
     symbols: ['high1', 'high2', 'high3', 'low1', 'low2', 'low3', 'low4']
 };
@@ -29,6 +30,7 @@ const STATES = {
 class MainScene extends Container {
     private _machine: Machine;
     private _spinButton: SpinButton;
+    private _isSpinning = false;
 
     constructor() {
         super();
@@ -55,11 +57,33 @@ class MainScene extends Container {
 
         this._machine = machine;
         this._spinButton = spinButton;
+
+        this.setupGlobalInput();
+    }
+
+    private setupGlobalInput() {
+        this.eventMode = 'static';
+        this.hitArea = new Rectangle(0, 0, config.screen.width, config.screen.height);
+
+        this.on('pointertap', () => {
+            if (this._isSpinning) {
+                this._machine.skip();
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (e.code !== 'Space') return;
+
+            if (this._isSpinning) {
+                this._machine.skip();
+            } else {
+                this._spinButton.click();
+            }
+        });
     }
 
     update(dt: number) {
         this._machine.update(dt);
-        this._spinButton.update(dt);
     }
 
     waitForSpin() {
@@ -67,11 +91,13 @@ class MainScene extends Container {
     }
 
     spin() {
+        this._isSpinning = true;
         this._machine.spin();
     }
 
     async stop(result: string[][]) {
         await this._machine.stop(result);
+        this._isSpinning = false;
     }
 }
 

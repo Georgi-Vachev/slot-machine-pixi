@@ -15,29 +15,27 @@ type ReelState = "idle" | "starting" | "spinning" | "stopping" | "landing";
 
 class Reel extends Container {
     private _textures: Map<string, Texture>;
-    private _tilesCount: number;
-    private _visibleTiles: number;
     private _speed = 0;
     private _tileHeight: number;
     private _state: ReelState = "idle";
-
+    private _skipped = false;
     private _incomingSymbols: string[] = [];
+    private _config: any;
     private _resolveStop: (() => void) | null = null;
 
     constructor({ size, textures, config }: { size: { width: number, height: number }, textures: Map<string, Texture>, config: any }) {
         super();
 
+        this._config = config;
         this._textures = textures;
-        this._tilesCount = config.rows;
-        this._visibleTiles = config.visibleTiles;
         this._speed = config.speed;
-        this._tileHeight = size.height / this._visibleTiles;
+        this._tileHeight = size.height / config.visibleTiles;
 
         this.addTiles(size);
     }
 
     addTiles(size: { width: number, height: number }) {
-        for (let i = -1; i < this._visibleTiles + 1; i++) {
+        for (let i = -1; i < this._config.visibleTiles + 1; i++) {
             const tile = new Tile(this.randomTexture());
 
             tile.position.set(0, i * this._tileHeight);
@@ -85,6 +83,20 @@ class Reel extends Container {
         });
     }
 
+    skip() {
+        if (this._skipped) return;
+
+        this._speed *= this._config.skipFactor;
+        this._skipped = true;
+    }
+
+    reset() {
+        this._state = "idle";
+        this._skipped = false;
+        this._speed = this._config.speed;
+        this._resolveStop = null;
+    }
+
     update(dt: number): void {
         if (this._state !== "spinning" && this._state !== "stopping") return;
 
@@ -94,8 +106,8 @@ class Reel extends Container {
             const tile = child as Tile;
             tile.y += this._speed * dt;
 
-            if (tile.y >= (this._visibleTiles + 1) * this._tileHeight) {
-                tile.y -= this._tilesCount * this._tileHeight;
+            if (tile.y >= (this._config.visibleTiles + 1) * this._tileHeight) {
+                tile.y -= this._config.rows * this._tileHeight;
                 this.recycle(tile);
             }
         }
@@ -134,7 +146,6 @@ class Reel extends Container {
                     onComplete: () => {
                         this._state = "idle";
                         this._resolveStop?.();
-                        this._resolveStop = null;
                     }
                 });
             }
@@ -176,6 +187,20 @@ export class Machine extends Container {
         await Promise.all(
             this._reels.map((reel, i) => reel.stop(result[i], i))
         );
+
+        this.reset();
+    }
+
+    skip() {
+        for (const reel of this._reels) {
+            reel.skip();
+        }
+    }
+
+    reset() {
+        for (const reel of this._reels) {
+            reel.reset();
+        }
     }
 
     update(dt: number): void {
