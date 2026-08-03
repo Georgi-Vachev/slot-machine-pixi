@@ -1,13 +1,26 @@
-import { Container, Sprite, Texture, Graphics } from "pixi.js";
+import { Container, Sprite, Texture, Graphics, ColorMatrixFilter } from "pixi.js";
 import gsap from "gsap";
+import { WinWay } from "./Outcome";
+import { delay } from "./utils";
 
 class Tile extends Sprite {
+    private _grayscaleFilter = new ColorMatrixFilter();
+
     constructor(texture: Texture) {
         super(texture);
     }
 
     setSymbol(texture: Texture) {
         this.texture = texture;
+    }
+
+    setGrayed(grayed: boolean) {
+        if (grayed) {
+            this._grayscaleFilter.desaturate();
+            this.filters = [this._grayscaleFilter];
+        } else {
+            this.filters = [];
+        }
     }
 }
 
@@ -34,12 +47,13 @@ class Reel extends Container {
         this.addTiles(size);
     }
 
+
     addTiles(size: { width: number, height: number }) {
         for (let i = -1; i < this._config.visibleTiles + 1; i++) {
             const tile = new Tile(this.randomTexture());
 
-            tile.position.set(0, i * this._tileHeight);
-            tile.setSize(size.width, this._tileHeight);
+            tile.anchor.set(0.5);
+            tile.position.set(size.width / 2, i * this._tileHeight + this._tileHeight / 2);
 
             this.addChild(tile);
         }
@@ -106,7 +120,7 @@ class Reel extends Container {
             const tile = child as Tile;
             tile.y += this._speed * dt;
 
-            if (tile.y >= (this._config.visibleTiles + 1) * this._tileHeight) {
+            if (tile.y >= (this._config.visibleTiles + 1) * this._tileHeight + this._tileHeight / 2) {
                 tile.y -= this._config.rows * this._tileHeight;
                 this.recycle(tile);
             }
@@ -131,7 +145,7 @@ class Reel extends Container {
 
         const sorted = [...this.children].sort((a, b) => a.y - b.y) as Tile[];
         sorted.forEach((tile, i) => {
-            tile.y = (i - 1) * this._tileHeight;
+            tile.y = (i - 1) * this._tileHeight + this._tileHeight / 2;
         });
 
         gsap.to(this, {
@@ -151,10 +165,63 @@ class Reel extends Container {
             }
         });
     }
+
+    private getVisibleTiles(): Tile[] {
+        const sorted = [...this.children].sort((a, b) => a.y - b.y) as Tile[];
+        return sorted.slice(1, 1 + this._config.visibleTiles);
+    }
+
+    highlightRows(winningRows: number[]): Promise<void> {
+        const visibleTiles = this.getVisibleTiles();
+        const winPromises: Promise<void>[] = [];
+
+        visibleTiles.forEach((tile, row) => {
+            const isWinning = winningRows.includes(row);
+
+            if (isWinning) {
+                tile.setGrayed(false);
+                winPromises.push(this.popTile(tile));
+            } else {
+                gsap.killTweensOf(tile);
+                gsap.killTweensOf(tile.scale);
+                tile.scale.set(1);
+                tile.rotation = 0;
+                tile.setGrayed(true);
+            }
+        });
+
+        return winPromises.length > 0 ? Promise.all(winPromises).then(() => { }) : Promise.resolve();
+    }
+
+    clearHighlight() {
+        for (const tile of this.getVisibleTiles()) {
+            gsap.killTweensOf(tile);
+            gsap.killTweensOf(tile.scale);
+            tile.setGrayed(false);
+            tile.scale.set(1);
+            tile.rotation = 0;
+        }
+    }
+
+    private popTile(tile: Tile): Promise<void> {
+        return new Promise(resolve => {
+            gsap.killTweensOf(tile);
+            gsap.killTweensOf(tile.scale);
+
+            const tl = gsap.timeline({ onComplete: resolve });
+
+            tl.to(tile.scale, { x: 1.15, y: 1.15, duration: 0.25, ease: "power2.out" }, 0);
+            tl.to(tile, { rotation: 0.12, duration: 0.25, ease: "power2.out" }, 0);
+
+            tl.to(tile.scale, { x: 1, y: 1, duration: 0.25, ease: "power2.in" });
+            tl.to(tile, { rotation: 0, duration: 0.25, ease: "power2.in" }, "<");
+        });
+    }
 }
 
 export class Machine extends Container {
     private _reels: Reel[] = [];
+    private _waysLoopActive = false;
 
     constructor({ reelsGuide, config }: { reelsGuide: Sprite; config: any }) {
         super();
@@ -177,6 +244,10 @@ export class Machine extends Container {
         this.addChild(reelsContainer);
     }
 
+    get reels() {
+        return this._reels;
+    }
+
     spin() {
         for (const reel of this._reels) {
             reel.spin();
@@ -194,6 +265,49 @@ export class Machine extends Container {
     skip() {
         for (const reel of this._reels) {
             reel.skip();
+        }
+    }
+
+    async showWays(wins: WinWay[]) {
+        if (wins.length === 0) return;
+
+        this._waysLoopActive = true;
+
+        const combined: WinWay = {
+            symbol: '',
+            positions: wins.flatMap(way => way.positions),
+        };
+
+        await this.showWay(combined);
+
+        while (this._waysLoopActive) {
+            for (const way of wins) {
+                if (!this._waysLoopActive) break;
+
+                await this.showWay(way);
+            }
+        }
+    }
+
+    async showWay(way: WinWay): Promise<void> {
+        await Promise.all(
+            this._reels.map((reel, reelIndex) => {
+                const rows = way.positions
+                    .filter(([index]) => index === reelIndex)
+                    .map(([, row]) => row);
+
+                return reel.highlightRows(rows);
+            })
+        );
+
+        await delay(0.4);
+    }
+
+    stopLoopWays() {
+        this._waysLoopActive = false;
+
+        for (const reel of this._reels) {
+            reel.clearHighlight();
         }
     }
 

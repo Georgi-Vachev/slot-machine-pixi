@@ -3,7 +3,8 @@ import { Machine } from "./src/Machine";
 import { urls } from "./img";
 import { SpinButton } from "./src/SpinButton";
 import { delay } from './src/utils'
-import { Outcome, Round } from './src/Outcome';
+import { Outcome, Round, WinWay } from './src/Outcome';
+import { DebugPanel, DebugWinLevel } from './src/Debug';
 
 const config = {
     screen: {
@@ -17,7 +18,9 @@ const config = {
         speed: 28,
         staggerDelay: 0.1,
         skipFactor: 2.2,
+        winWaysLoopDelay: 0.4,
     },
+    minWaysLength: 3,
     symbols: ['high1', 'high2', 'high3', 'low1', 'low2', 'low3', 'low4']
 };
 
@@ -31,6 +34,7 @@ class MainScene extends Container {
     private _machine: Machine;
     private _spinButton: SpinButton;
     private _isSpinning = false;
+    private _debugPanel: DebugPanel;
 
     constructor() {
         super();
@@ -55,10 +59,19 @@ class MainScene extends Container {
         spinButton.position.set(screen.width * 0.85, screen.height * 0.85);
         this.addChild(spinButton);
 
+        const debug = new DebugPanel();
+        debug.position.set(screen.width * 0.85, screen.height * 0.54);
+        this.addChild(debug);
+
         this._machine = machine;
         this._spinButton = spinButton;
+        this._debugPanel = debug;
 
         this.setupGlobalInput();
+    }
+
+    get debugLevel() {
+        return this._debugPanel.selected;
     }
 
     private setupGlobalInput() {
@@ -99,6 +112,14 @@ class MainScene extends Container {
         await this._machine.stop(result);
         this._isSpinning = false;
     }
+
+    showWays(ways: WinWay[]) {
+        this._machine.showWays(ways);
+    }
+
+    stopLoopWays() {
+        this._machine.stopLoopWays();
+    }
 }
 
 class Game {
@@ -129,31 +150,42 @@ class Game {
     async setState(state: typeof STATES[keyof typeof STATES]): Promise<void> {
         if (this._state === state) return;
 
-        const { reels: { columns, rows }, symbols } = config;
+        const { reels: { columns, rows, visibleTiles }, symbols, minWaysLength } = config;
 
         this._state = state;
 
         switch (state) {
             case STATES.IDLE:
-                console.error('IDLE') // TEMP
                 await this._mainScene.waitForSpin();
+
+                this._mainScene.stopLoopWays();
 
                 return await this.setState(STATES.SPINNING);
 
-            case STATES.SPINNING:
+            case STATES.SPINNING: {
                 this._mainScene.spin();
+
                 await delay(1);
 
-
-                this._currentRound = Outcome.spin({ ...config.reels, symbols });
+                if (this._mainScene.debugLevel !== DebugWinLevel.LAST_ROUND || !this._currentRound) {
+                    this._currentRound = Outcome.spin({
+                        columns,
+                        rows,
+                        visibleTiles,
+                        symbols,
+                        minWaysLength,
+                        targetWays: this._mainScene.debugLevel ?? undefined,
+                    });
+                }
 
                 await this._mainScene.stop(this._currentRound.screen);
 
                 return await this.setState(STATES.WIN);
+            }
 
             case STATES.WIN:
-                console.error('WIN'); // TEMP
-                await delay(0.5);
+                this._mainScene.showWays(this._currentRound.ways);
+
                 return await this.setState(STATES.IDLE);
         }
     }
