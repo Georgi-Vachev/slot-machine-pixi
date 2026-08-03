@@ -75,7 +75,7 @@ class Reel extends Container {
     stop(result: string[], extraCycles = 0): Promise<void> {
         const padding = Array.from({ length: extraCycles }, () => this.randomSymbolKey());
 
-        this._incomingSymbols = [...padding, ...[...result].reverse()];
+        this._incomingSymbols = [...result, ...padding];
         this._state = "stopping";
 
         return new Promise(resolve => {
@@ -115,7 +115,7 @@ class Reel extends Container {
 
     private recycle(tile: Tile) {
         if (this._state === "stopping" && this._incomingSymbols.length > 0) {
-            const symbol = this._incomingSymbols.shift()!;
+            const symbol = this._incomingSymbols.pop()!;
             tile.setSymbol(this._textures.get(symbol)!);
 
             if (this._incomingSymbols.length === 0) {

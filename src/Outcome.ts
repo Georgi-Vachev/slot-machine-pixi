@@ -1,15 +1,25 @@
-export class Outcome {
-    constructor() { }
+export interface Round {
+    screen: string[][];
+}
 
-    static resolve({ columns, rows, symbols }: { columns: number; rows: number; symbols: string[] }): string[][] {
-        const outcome: string[][] = [];
-        for (let i = 0; i < columns; i++) {
-            const column = [];
-            for (let j = 0; j < rows; j++) {
+export class Outcome {
+    static spin({ columns, rows, symbols }: {
+        columns: number;
+        rows: number;
+        visibleTiles: number;
+        symbols: string[];
+        minWaysLength?: number;
+    }): Round {
+        const screen: string[][] = [];
+
+        for (let c = 0; c < columns; c++) {
+            const column: string[] = [];
+            for (let r = 0; r < rows; r++) {
                 column.push(symbols[Math.floor(Math.random() * symbols.length)]);
             }
-            outcome.push(column);
+            screen.push(column);
         }
-        return outcome;
+
+        return { screen };
     }
 }

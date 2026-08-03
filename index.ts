@@ -3,7 +3,7 @@ import { Machine } from "./src/Machine";
 import { urls } from "./img";
 import { SpinButton } from "./src/SpinButton";
 import { delay } from './src/utils'
-import { Outcome } from './src/Outcome';
+import { Outcome, Round } from './src/Outcome';
 
 const config = {
     screen: {
@@ -104,7 +104,8 @@ class MainScene extends Container {
 class Game {
     public app: Application;
     private _state!: typeof STATES[keyof typeof STATES];
-    private _mainScene!: MainScene
+    private _mainScene!: MainScene;
+    private _currentRound!: Round;
 
     get state() {
         return this._state;
@@ -143,10 +144,10 @@ class Game {
                 this._mainScene.spin();
                 await delay(1);
 
-                const response = Outcome.resolve({ columns, rows, symbols });
-                console.error(response)
 
-                await this._mainScene.stop(response);
+                this._currentRound = Outcome.spin({ ...config.reels, symbols });
+
+                await this._mainScene.stop(this._currentRound.screen);
 
                 return await this.setState(STATES.WIN);
 
