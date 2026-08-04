@@ -194,9 +194,11 @@ class Game {
 (async () => {
     const app = new Application();
 
-    globalThis.__PIXI_APP__ = app; // TEMP
+    await app.init({
+        ...config.screen,
+        resizeTo: window,
+    });
 
-    await app.init(config.screen);
     document.body.appendChild(app.canvas);
 
     const game = new Game();
